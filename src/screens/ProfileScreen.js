@@ -73,8 +73,14 @@ const ProfileScreen = ({ navigation }) => {
       totalPlatformEngagement += platformData.engagement || 0;
       totalPlatformImpressions += platformData.impressions || 0;
 
-      // Track best performing platform
-      if (platformData.impressions > 0) {
+      // Track best performing platform using correct engagement formula
+      if (platformData.followers > 0) {
+        const engagementRate = (platformData.engagement / platformData.followers) * 100;
+        if (engagementRate > bestEngagementRate) {
+          bestEngagementRate = engagementRate;
+          bestPlatform = platformName;
+        }
+      } else if (platformData.impressions > 0) {
         const engagementRate = (platformData.engagement / platformData.impressions) * 100;
         if (engagementRate > bestEngagementRate) {
           bestEngagementRate = engagementRate;
@@ -82,8 +88,32 @@ const ProfileScreen = ({ navigation }) => {
         }
       }
       
-      // Insight 1: Engagement rate analysis
-      if (platformData.impressions > 0) {
+      // Insight 1: Engagement rate analysis (using followers for accuracy)
+      if (platformData.followers > 0) {
+        const engagementRate = ((platformData.engagement / platformData.followers) * 100).toFixed(1);
+        if (parseFloat(engagementRate) > 5) {
+          insightsList.push({
+            icon: 'trending-up',
+            color: '#4caf50',
+            text: `🚀 Your ${platformName} engagement rate is ${engagementRate}% - Outstanding! Your audience loves your content.`,
+            priority: 1
+          });
+        } else if (parseFloat(engagementRate) > 2) {
+          insightsList.push({
+            icon: 'chart-line',
+            color: '#ff9800',
+            text: `📊 ${platformName} engagement: ${engagementRate}%. Try polls, questions, or behind-the-scenes content to boost interaction.`,
+            priority: 2
+          });
+        } else {
+          insightsList.push({
+            icon: 'lightbulb-on',
+            color: '#2196f3',
+            text: `💡 ${platformName} engagement: ${engagementRate}%. Focus on storytelling and add strong calls-to-action to increase engagement.`,
+            priority: 3
+          });
+        }
+      } else if (platformData.impressions > 0) {
         const engagementRate = ((platformData.engagement / platformData.impressions) * 100).toFixed(1);
         if (parseFloat(engagementRate) > 5) {
           insightsList.push({
@@ -227,9 +257,13 @@ const ProfileScreen = ({ navigation }) => {
         });
       }
 
-      const avgEngagementRate = totalPlatformImpressions > 0 
-        ? ((totalPlatformEngagement / totalPlatformImpressions) * 100).toFixed(1)
-        : 0;
+      // Calculate overall engagement rate using followers (industry standard)
+      const totalFollowers = analytics.reduce((sum, data) => sum + (data.followers || 0), 0);
+      const avgEngagementRate = totalFollowers > 0 
+        ? ((totalPlatformEngagement / totalFollowers) * 100).toFixed(1)
+        : totalPlatformImpressions > 0 
+          ? ((totalPlatformEngagement / totalPlatformImpressions) * 100).toFixed(1)
+          : 0;
       
       insightsList.push({
         icon: 'chart-arc',
@@ -372,10 +406,13 @@ const ProfileScreen = ({ navigation }) => {
       totalFollowers += platformData.followers || 0;
     });
 
-    // Calculate average engagement rate
-    const avgEngagementRate = totalViews > 0 
-      ? ((totalEngagement / totalViews) * 100).toFixed(1)
-      : '0';
+    // Calculate average engagement rate using industry standard formula
+    // Engagement Rate = (Total Engagements / Total Followers) × 100
+    const avgEngagementRate = totalFollowers > 0 
+      ? ((totalEngagement / totalFollowers) * 100).toFixed(1)
+      : totalViews > 0 
+        ? ((totalEngagement / totalViews) * 100).toFixed(1)
+        : '0';
 
     setUserStats({
       totalPosts,
