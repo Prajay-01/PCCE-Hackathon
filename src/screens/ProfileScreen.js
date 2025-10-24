@@ -320,10 +320,21 @@ const ProfileScreen = ({ navigation }) => {
         );
         // Reload user data to show updated stats
         await loadUserData();
+      } else {
+        Alert.alert('Info', result.message || 'Could not sync Instagram data');
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to sync Instagram data');
       console.error('Instagram sync error:', error);
+      // Check if it's the permission error
+      if (error.message && error.message.includes('#10') || error.message.includes('permission')) {
+        Alert.alert(
+          'Instagram API Not Available',
+          'Instagram requires Business accounts and app approval to access data.\n\nDon\'t worry! The app works perfectly in Manual Learning Mode. AI will learn from your content as you create.',
+          [{ text: 'Got it!' }]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to sync Instagram data');
+      }
     } finally {
       setSyncing(false);
     }
