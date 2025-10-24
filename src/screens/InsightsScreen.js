@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
-import { Card, Title, Paragraph, Button, Avatar, Chip, ProgressBar, Surface, FAB } from 'react-native-paper';
+import { Card, Title, Paragraph, Button, Avatar, Chip, ProgressBar, Surface } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
@@ -259,14 +259,6 @@ const InsightsScreen = () => {
         </View>
 
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        color="#000000"
-        onPress={() => {}}
-      />
     </View>
   );
 };
@@ -337,13 +329,6 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 16,
-  },
-
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 80,
-    backgroundColor: '#00D9C0',
   },
   tipSection: {
     marginTop: 20,
