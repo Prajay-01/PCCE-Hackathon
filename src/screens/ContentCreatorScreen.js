@@ -33,8 +33,6 @@ import {
   generateAIHashtags,
   improveCaption,
   chatWithAI,
-  getTrendingContentIdeas,
-  generateContentCalendar,
 } from '../services/aiService';
 
 const ContentCreatorScreen = ({ navigation }) => {
@@ -57,8 +55,6 @@ const ContentCreatorScreen = ({ navigation }) => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [improvements, setImprovements] = useState(null);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [contentCalendar, setContentCalendar] = useState('');
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
@@ -240,20 +236,6 @@ const ContentCreatorScreen = ({ navigation }) => {
     }
   };
 
-  const handleGenerateCalendar = async () => {
-    setAiLoading(true);
-    try {
-      const calendar = await generateContentCalendar(selectedNiche, selectedPlatform, 7);
-      setContentCalendar(calendar);
-      setShowCalendar(true);
-    } catch (error) {
-      console.error('Error generating calendar:', error);
-      Alert.alert('Error', 'Failed to generate calendar. Check your API key.');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   const niches = [
     { value: 'tech', label: 'Tech' },
     { value: 'business', label: 'Business' },
@@ -286,12 +268,6 @@ const ContentCreatorScreen = ({ navigation }) => {
               iconColor="#00D9C0"
               size={24}
               onPress={() => setShowAIChat(true)}
-            />
-            <IconButton
-              icon="calendar"
-              iconColor="#00D9C0"
-              size={24}
-              onPress={handleGenerateCalendar}
             />
           </View>
         </View>
@@ -668,44 +644,6 @@ const ContentCreatorScreen = ({ navigation }) => {
             />
           </View>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Content Calendar Modal */}
-      <Modal
-        visible={showCalendar}
-        onDismiss={() => setShowCalendar(false)}
-        animationType="slide"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.chatHeader}>
-            <Title style={styles.chatTitle}>📅 7-Day Content Calendar</Title>
-            <IconButton
-              icon="close"
-              iconColor="#FFFFFF"
-              onPress={() => setShowCalendar(false)}
-            />
-          </View>
-
-          <ScrollView style={styles.calendarContent}>
-            {aiLoading ? (
-              <ActivityIndicator size="large" color="#00D9C0" style={{ marginTop: 50 }} />
-            ) : (
-              <Card style={styles.calendarCard}>
-                <Card.Content>
-                  <Text style={styles.calendarText}>{contentCalendar}</Text>
-                </Card.Content>
-              </Card>
-            )}
-          </ScrollView>
-
-          <Button
-            mode="contained"
-            onPress={() => setShowCalendar(false)}
-            style={styles.closeCalendarButton}
-          >
-            Close
-          </Button>
-        </View>
       </Modal>
     </View>
   );
