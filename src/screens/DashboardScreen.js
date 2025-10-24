@@ -25,9 +25,10 @@ const DashboardScreen = ({ navigation }) => {
   useEffect(() => {
     if (!user) return;
 
+    console.log("DashboardScreen: Starting to load data for user:", user.uid);
     setLoading(true);
 
-    // Set a timeout to prevent infinite loading
+    // Set a timeout to prevent infinite loading (reduced to 3 seconds)
     const loadingTimeout = setTimeout(() => {
       console.log("Dashboard loading timeout - showing default state");
       setLoading(false);
@@ -36,7 +37,7 @@ const DashboardScreen = ({ navigation }) => {
         { tip: 'Connect your social media accounts to start seeing insights', type: 'Getting Started', icon: 'link', color: '#667eea' },
         { tip: 'Once connected, we\'ll analyze your content performance', type: 'Info', icon: 'information', color: '#4facfe' },
       ]);
-    }, 5000); // 5 second timeout
+    }, 3000); // 3 second timeout (faster loading)
 
     // Set up a real-time listener for the user's analytics data
     const unsubscribe = firestore()
@@ -44,6 +45,7 @@ const DashboardScreen = ({ navigation }) => {
       .where('userId', '==', user.uid)
       .onSnapshot(async (querySnapshot) => {
         try {
+          console.log("DashboardScreen: Received snapshot with", querySnapshot.docs.length, "documents");
           clearTimeout(loadingTimeout); // Clear timeout if data loads successfully
           const analyticsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           
