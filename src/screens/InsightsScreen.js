@@ -165,7 +165,9 @@ const InsightsScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Title style={styles.headerTitle}>Growify AI</Title>
-        <Paragraph style={styles.headerSubtitle}>@</Paragraph>
+        <Paragraph style={styles.headerSubtitle}>
+          @{user?.displayName?.toLowerCase().replace(/\s+/g, '') || user?.email?.split('@')[0] || 'user'}
+        </Paragraph>
         <Button 
           mode="text" 
           textColor="#00D9C0"
@@ -224,25 +226,36 @@ const InsightsScreen = () => {
               width={screenWidth - 60}
               height={200}
               chartConfig={{
-                backgroundColor: '#1a1a1a',
+                backgroundColor: '#000000',
                 backgroundGradientFrom: '#1a1a1a',
-                backgroundGradientTo: '#1a1a1a',
+                backgroundGradientTo: '#2a2a2a',
                 decimalPlaces: 1,
                 color: (opacity = 1) => `rgba(0, 217, 192, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(128, 128, 128, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                 style: {
                   borderRadius: 16,
                 },
                 propsForDots: {
-                  r: "4",
-                  strokeWidth: "2",
-                  stroke: "#00D9C0"
+                  r: "5",
+                  strokeWidth: "3",
+                  stroke: "#00D9C0",
+                  fill: "#00D9C0"
+                },
+                propsForBackgroundLines: {
+                  strokeDasharray: '',
+                  stroke: 'rgba(255, 255, 255, 0.1)'
+                },
+                propsForLabels: {
+                  fontSize: 12,
+                  fontWeight: 'bold'
                 }
               }}
               bezier
               style={styles.chart}
-              withInnerLines={false}
+              withInnerLines={true}
               withOuterLines={false}
+              withVerticalLines={false}
+              withHorizontalLines={true}
             />
           </Card.Content>
         </Card>

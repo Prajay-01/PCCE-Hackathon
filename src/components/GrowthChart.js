@@ -57,17 +57,22 @@ const GrowthChart = ({ analyticsData = [] }) => {
   const hasData = analyticsData.length > 0 && data.datasets[0].data.some(v => v > 0);
 
   const chartConfig = {
-    backgroundColor: '#1cc910',
-    backgroundGradientFrom: '#eff3ff',
-    backgroundGradientTo: '#efefef',
+    backgroundColor: '#000000',
+    backgroundGradientFrom: '#1a1a1a',
+    backgroundGradientTo: '#2a2a2a',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(102, 126, 234, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => `rgba(0, 217, 192, ${opacity})`, // Cyan color
+    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // White labels
     style: {
       borderRadius: 16
     },
     propsForLabels: {
-      fontSize: 10
+      fontSize: 12,
+      fontWeight: 'bold'
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '', // solid background lines
+      stroke: 'rgba(255, 255, 255, 0.1)'
     }
   };
 
@@ -85,7 +90,7 @@ const GrowthChart = ({ analyticsData = [] }) => {
         showValuesOnTopOfBars={true}
       />
       {!hasData && (
-        <Paragraph style={{ textAlign: 'center', color: '#999', marginTop: 10 }}>
+        <Paragraph style={{ textAlign: 'center', color: '#808080', marginTop: 10, fontSize: 13 }}>
           Sync your social accounts to see real engagement data
         </Paragraph>
       )}

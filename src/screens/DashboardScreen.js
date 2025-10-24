@@ -206,7 +206,9 @@ const DashboardScreen = ({ navigation }) => {
     >
       <View style={styles.header}>
         <Title style={styles.headerTitle}>Growify AI</Title>
-        <Paragraph style={styles.headerSubtitle}>@</Paragraph>
+        <Paragraph style={styles.headerSubtitle}>
+          @{user?.displayName?.toLowerCase().replace(/\s+/g, '') || user?.email?.split('@')[0] || 'user'}
+        </Paragraph>
       </View>
 
       <View style={styles.content}>
