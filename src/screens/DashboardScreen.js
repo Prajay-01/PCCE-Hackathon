@@ -100,10 +100,6 @@ const DashboardScreen = ({ navigation }) => {
       }
     });
 
-    const engagementRate = totalImpressions > 0 
-      ? ((totalEngagements / totalImpressions) * 100).toFixed(1)
-      : '0';
-
     const formatNumber = (num) => {
       if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
       if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
@@ -130,6 +126,14 @@ const DashboardScreen = ({ navigation }) => {
       .join(' • ');
 
     const totalFollowers = Object.values(followersByPlatform).reduce((sum, count) => sum + count, 0);
+
+    // Calculate engagement rate properly: (Total Engagements / Total Followers) * 100
+    // This gives a more realistic engagement rate percentage
+    const engagementRate = totalFollowers > 0 
+      ? ((totalEngagements / totalFollowers) * 100).toFixed(1)
+      : totalImpressions > 0 
+        ? ((totalEngagements / totalImpressions) * 100).toFixed(1)
+        : '0';
 
     setMetrics([
       { title: 'Total Views', value: formatNumber(totalImpressions), icon: 'eye', color: '#667eea', change: '+12%' },
