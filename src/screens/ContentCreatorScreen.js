@@ -16,24 +16,20 @@ import {
   List,
   Text
 } from 'react-native-paper';
+import firestore from '@react-native-firebase/firestore';
 
 import { useAuth } from '../context/AuthContext';
-import {
-  generatePostIdeas,
-  generateCaption,
-  generateHashtags,
-  saveGeneratedContent,
-  predictEngagement,
-  getTrendingTopics,
-} from '../services/contentGeneratorService';
+import { saveGeneratedContent } from '../services/contentGeneratorService';
 
+// AI-powered services
 import {
-  generateAIPostIdeas,
-  generateAICaption,
-  generateAIHashtags,
-  improveCaption,
-  chatWithAI,
-} from '../services/aiService';
+  fetchInstagramPosts,
+  analyzeInstagramData,
+  generatePersonalizedSuggestions,
+  generatePersonalizedCaption,
+  generatePersonalizedHashtags,
+  getContentStrategy,
+} from '../services/instagramAnalyzer';
 
 const ContentCreatorScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -49,47 +45,59 @@ const ContentCreatorScreen = ({ navigation }) => {
   const [engagementScore, setEngagementScore] = useState(0);
   const [showIdeas, setShowIdeas] = useState(true);
   
-  // New AI features
-  const [useAI, setUseAI] = useState(false); // OFF by default to avoid API limits
+  // Instagram Analysis
+  const [instagramData, setInstagramData] = useState(null);
+  const [instagramAnalysis, setInstagramAnalysis] = useState(null);
+  const [showStrategy, setShowStrategy] = useState(false);
+  const [contentStrategy, setContentStrategy] = useState('');
+  
+  // AI Chat
   const [showAIChat, setShowAIChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
-  const [improvements, setImprovements] = useState(null);
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
-    loadPostIdeas();
-  }, [selectedPlatform, selectedNiche, useAI]);
+    initializeInstagramAnalysis();
+  }, []);
 
-  const loadPostIdeas = async () => {
+  const initializeInstagramAnalysis = async () => {
     setLoading(true);
     try {
-      if (useAI) {
-        // Use Gemini AI for better ideas
-        try {
-          const aiIdeas = await generateAIPostIdeas(selectedNiche, selectedPlatform, selectedTone, 5);
-          setPostIdeas(aiIdeas);
-        } catch (aiError) {
-          console.warn('AI generation failed, falling back to templates:', aiError);
-          Alert.alert(
-            '⚠️ AI Mode Unavailable', 
-            'Using template mode instead. Please check your internet connection or API key configuration.',
-            [{ text: 'OK' }]
-          );
-          // Fallback to template-based
-          const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
-          setPostIdeas(ideas);
+      // Get Instagram access token from user's connected accounts
+      const userDoc = await firestore().collection('users').doc(user.uid).get();
+      const connectedAccounts = userDoc.data()?.connectedAccounts || {};
+      
+      if (connectedAccounts.instagram?.accessToken) {
+        // Fetch real Instagram posts
+        const posts = await fetchInstagramPosts(connectedAccounts.instagram.accessToken);
+        setInstagramData(posts);
+        
+        // Analyze the data
+        const analysis = await analyzeInstagramData(posts);
+        setInstagramAnalysis(analysis);
+        
+        // Generate personalized suggestions
+        if (analysis) {
+          const suggestions = await generatePersonalizedSuggestions(analysis, selectedPlatform, 5);
+          setPostIdeas(suggestions);
         }
       } else {
-        // Use template-based ideas
-        const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
-        setPostIdeas(ideas);
+        Alert.alert(
+          '📱 Connect Instagram',
+          'Please connect your Instagram account in Settings to get personalized AI suggestions based on your data.',
+          [
+            { text: 'Later', style: 'cancel' },
+            { text: 'Connect Now', onPress: () => navigation.navigate('ConnectAccounts') }
+          ]
+        );
       }
     } catch (error) {
-      console.error('Error loading ideas:', error);
-      // Final fallback
-      const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
-      setPostIdeas(ideas);
+      console.error('Error initializing Instagram analysis:', error);
+      Alert.alert(
+        'Unable to Load Data',
+        'Could not fetch your Instagram data. Please check your connection and try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -101,50 +109,33 @@ const ContentCreatorScreen = ({ navigation }) => {
       return;
     }
 
+    if (!instagramAnalysis) {
+      Alert.alert(
+        'Connect Instagram',
+        'Please connect your Instagram account to get personalized AI-generated captions based on your successful posts.'
+      );
+      return;
+    }
+
     setAiLoading(true);
     try {
-      let caption, hashtags;
+      // Use OpenAI with your Instagram data for personalized caption
+      const caption = await generatePersonalizedCaption(topic, instagramAnalysis, selectedPlatform);
+      setGeneratedCaption(caption);
       
-      if (useAI) {
-        // Use Gemini AI for better quality
-        try {
-          caption = await generateAICaption(topic, selectedPlatform, selectedTone);
-          setGeneratedCaption(caption);
-          
-          hashtags = await generateAIHashtags(caption, selectedPlatform, selectedNiche, 10);
-          setGeneratedHashtags(hashtags);
-        } catch (aiError) {
-          console.warn('AI caption generation failed, using templates:', aiError);
-          Alert.alert(
-            '⚠️ AI Unavailable',
-            'Generated using templates instead. AI features may be temporarily unavailable.',
-            [{ text: 'OK' }]
-          );
-          // Fallback to templates
-          caption = generateCaption(topic, selectedPlatform, selectedTone);
-          setGeneratedCaption(caption);
-          
-          hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
-          setGeneratedHashtags(hashtags);
-        }
-      } else {
-        // Use template-based generation
-        caption = generateCaption(topic, selectedPlatform, selectedTone);
-        setGeneratedCaption(caption);
-        
-        hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
-        setGeneratedHashtags(hashtags);
-      }
-
-      // Predict engagement
-      const score = predictEngagement(caption, hashtags, selectedPlatform, new Date());
-      setEngagementScore(score);
+      // Generate hashtags based on your successful posts
+      const hashtags = await generatePersonalizedHashtags(caption, instagramAnalysis);
+      setGeneratedHashtags(hashtags);
       
-      setShowIdeas(false);
-      setImprovements(null);
+      // Set engagement prediction based on your averages
+      setEngagementScore(instagramAnalysis.avgLikes);
+      
     } catch (error) {
-      console.error('Error generating content:', error);
-      Alert.alert('Error', 'Failed to generate content. Please try again.');
+      console.error('Error generating caption:', error);
+      Alert.alert(
+        'Generation Failed',
+        'Unable to generate AI caption. Please check your OpenAI API key in the config file and try again.'
+      );
     } finally {
       setAiLoading(false);
     }
@@ -153,11 +144,44 @@ const ContentCreatorScreen = ({ navigation }) => {
   const handleUseIdea = (idea) => {
     setTopic(idea.topic);
     setGeneratedCaption(idea.caption);
-    const hashtags = generateHashtags(idea.caption, selectedPlatform, selectedNiche, 10);
-    setGeneratedHashtags(hashtags);
-    const score = predictEngagement(idea.caption, hashtags, selectedPlatform, new Date());
-    setEngagementScore(score);
+    setGeneratedHashtags(idea.caption.match(/#\w+/g) || []);
+    setEngagementScore(idea.estimatedEngagement);
     setShowIdeas(false);
+  };
+
+  const handleRefreshSuggestions = async () => {
+    if (!instagramAnalysis) {
+      Alert.alert('Connect Instagram', 'Please connect your Instagram account first.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const suggestions = await generatePersonalizedSuggestions(instagramAnalysis, selectedPlatform, 5);
+      setPostIdeas(suggestions);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh suggestions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGetStrategy = async () => {
+    if (!instagramAnalysis) {
+      Alert.alert('Connect Instagram', 'Please connect your Instagram account first.');
+      return;
+    }
+    
+    setAiLoading(true);
+    try {
+      const strategy = await getContentStrategy(instagramAnalysis);
+      setContentStrategy(strategy);
+      setShowStrategy(true);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to get content strategy');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleSaveContent = async () => {
@@ -250,43 +274,46 @@ const ContentCreatorScreen = ({ navigation }) => {
     { value: 'inspirational', label: 'Inspirational' },
   ];
 
-  const trendingTopics = getTrendingTopics(selectedNiche);
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View>
-            <Title style={styles.headerTitle}>Growify AI</Title>
+            <Title style={styles.headerTitle}>🤖 AI Content Assistant</Title>
             <Paragraph style={styles.headerSubtitle}>
-              @{user?.displayName?.toLowerCase().replace(/\s+/g, '') || user?.email?.split('@')[0] || 'user'}
+              Powered by your Instagram data
             </Paragraph>
           </View>
           <View style={styles.headerButtons}>
             <IconButton
-              icon="chat"
+              icon="chart-line"
               iconColor="#00D9C0"
               size={24}
-              onPress={() => setShowAIChat(true)}
+              onPress={handleGetStrategy}
+              disabled={!instagramAnalysis}
             />
           </View>
         </View>
         
-        {/* AI Toggle */}
-        <View style={styles.aiToggle}>
-          <Chip
-            icon={useAI ? "robot" : "text"}
-            selected={useAI}
-            onPress={() => setUseAI(!useAI)}
-            style={styles.aiChip}
-            selectedColor="#00D9C0"
-          >
-            {useAI ? '🤖 Gemini AI Powered' : '📝 Template Mode'}
-          </Chip>
-          {useAI && (
-            <Text style={styles.aiHint}>Higher quality, slower</Text>
-          )}
-        </View>
+        {/* Instagram Analysis Stats */}
+        {instagramAnalysis && (
+          <Surface style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{instagramAnalysis.totalPosts}</Text>
+                <Text style={styles.statLabel}>Posts Analyzed</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{instagramAnalysis.avgLikes}</Text>
+                <Text style={styles.statLabel}>Avg Likes</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{instagramAnalysis.bestPostingHour}:00</Text>
+                <Text style={styles.statLabel}>Best Time</Text>
+              </View>
+            </View>
+          </Surface>
+        )}
       </View>
 
       <ScrollView style={styles.content}>
@@ -357,53 +384,38 @@ const ContentCreatorScreen = ({ navigation }) => {
           </Card.Content>
         </Card>
 
-        {/* Trending Topics */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title style={styles.sectionTitle}>🔥 Trending Topics</Title>
-            <View style={styles.chipContainer}>
-              {trendingTopics.map((trendTopic) => (
-                <Chip
-                  key={trendTopic}
-                  icon="trending-up"
-                  onPress={() => setTopic(trendTopic)}
-                  style={styles.trendChip}
-                >
-                  {trendTopic}
-                </Chip>
-              ))}
-            </View>
-          </Card.Content>
-        </Card>
-
         {showIdeas ? (
           // Post Ideas Section
           <>
             <View style={styles.sectionHeader}>
-              <Title style={styles.sectionTitle}>💡 AI Post Ideas</Title>
-              <Button mode="text" onPress={loadPostIdeas}>
+              <Title style={styles.sectionTitle}>💡 Personalized Suggestions</Title>
+              <Button mode="text" onPress={handleRefreshSuggestions} textColor="#00D9C0">
                 Refresh
               </Button>
             </View>
             {loading ? (
-              <ActivityIndicator size="large" color="#667eea" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color="#00D9C0" style={{ marginTop: 20 }} />
             ) : (
               postIdeas.map((idea) => (
                 <Card key={idea.id} style={styles.ideaCard} mode="elevated">
                   <Card.Content>
                     <View style={styles.ideaHeader}>
-                      <Chip icon="lightbulb" style={styles.topicChip}>
+                      <Chip icon="lightbulb" style={styles.topicChip} textStyle={{color: '#fff'}}>
                         {idea.topic}
                       </Chip>
-                      <Chip icon="fire" style={styles.engagementChip}>
-                        {idea.estimatedEngagement}% engagement
+                      <Chip icon="chart-line" style={styles.engagementChip} textStyle={{color: '#fff'}}>
+                        ~{idea.estimatedEngagement} likes
                       </Chip>
                     </View>
                     <Paragraph style={styles.ideaCaption}>{idea.caption}</Paragraph>
+                    {idea.bestTime && (
+                      <Text style={styles.bestTimeText}>🕐 Best time: {idea.bestTime}</Text>
+                    )}
                     <Button
                       mode="contained"
                       onPress={() => handleUseIdea(idea)}
                       style={styles.useIdeaButton}
+                      buttonColor="#00D9C0"
                     >
                       Use This Idea
                     </Button>
@@ -432,14 +444,15 @@ const ContentCreatorScreen = ({ navigation }) => {
             />
             <Button
               mode="contained"
-              icon="auto-fix"
+              icon="robot"
               onPress={handleGenerateCaption}
               loading={aiLoading}
-              disabled={aiLoading}
+              disabled={aiLoading || !instagramAnalysis}
               style={styles.generateButton}
               contentStyle={styles.generateButtonContent}
+              buttonColor="#00D9C0"
             >
-              {useAI ? '✨ Generate with AI' : 'Generate Content'}
+              ✨ Generate AI Caption (Based on Your Data)
             </Button>
           </Card.Content>
         </Card>
@@ -644,6 +657,25 @@ const ContentCreatorScreen = ({ navigation }) => {
             />
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Strategy Modal */}
+      <Modal
+        visible={showStrategy}
+        onDismiss={() => setShowStrategy(false)}
+        contentContainerStyle={styles.strategyModal}
+      >
+        <View style={styles.strategyHeader}>
+          <Title style={styles.strategyTitle}>📊 Your Content Strategy</Title>
+          <IconButton
+            icon="close"
+            iconColor="#fff"
+            onPress={() => setShowStrategy(false)}
+          />
+        </View>
+        <ScrollView style={styles.strategyContent}>
+          <Text style={styles.strategyText}>{contentStrategy}</Text>
+        </ScrollView>
       </Modal>
     </View>
   );
@@ -949,21 +981,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#2a2a2a',
     maxHeight: 100,
   },
-  calendarContent: {
-    flex: 1,
-    padding: 15,
-  },
-  calendarCard: {
+  statsCard: {
     backgroundColor: '#1a1a1a',
+    padding: 15,
+    borderRadius: 12,
+    marginTop: 15,
+    elevation: 2,
   },
-  calendarText: {
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  stat: {
+    alignItems: 'center',
+  },
+  statValue: {
+    color: '#00D9C0',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    color: '#808080',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  bestTimeText: {
+    color: '#00D9C0',
+    fontSize: 12,
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  strategyModal: {
+    backgroundColor: '#1a1a1a',
+    margin: 20,
+    borderRadius: 16,
+    maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  strategyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  strategyTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+  },
+  strategyContent: {
+    padding: 20,
+  },
+  strategyText: {
     color: '#FFFFFF',
     fontSize: 14,
-    lineHeight: 22,
-  },
-  closeCalendarButton: {
-    margin: 15,
-    backgroundColor: '#00D9C0',
+    lineHeight: 24,
   },
 });
 
