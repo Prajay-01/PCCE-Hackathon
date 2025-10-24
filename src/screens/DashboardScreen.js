@@ -27,12 +27,24 @@ const DashboardScreen = ({ navigation }) => {
 
     setLoading(true);
 
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.log("Dashboard loading timeout - showing default state");
+      setLoading(false);
+      setRefreshing(false);
+      setInsights([
+        { tip: 'Connect your social media accounts to start seeing insights', type: 'Getting Started', icon: 'link', color: '#667eea' },
+        { tip: 'Once connected, we\'ll analyze your content performance', type: 'Info', icon: 'information', color: '#4facfe' },
+      ]);
+    }, 5000); // 5 second timeout
+
     // Set up a real-time listener for the user's analytics data
     const unsubscribe = firestore()
       .collection('analytics')
       .where('userId', '==', user.uid)
       .onSnapshot(async (querySnapshot) => {
         try {
+          clearTimeout(loadingTimeout); // Clear timeout if data loads successfully
           const analyticsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           
           // Store analytics data for the chart
@@ -69,12 +81,16 @@ const DashboardScreen = ({ navigation }) => {
         }
       }, (error) => {
         console.error("Error fetching analytics snapshot: ", error);
+        clearTimeout(loadingTimeout);
         setLoading(false);
         setRefreshing(false);
       });
 
     // Cleanup function to unsubscribe from the listener when the component unmounts
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(loadingTimeout);
+      unsubscribe();
+    };
   }, [user]);
 
   const processAnalyticsData = (analyticsData, accounts) => {
