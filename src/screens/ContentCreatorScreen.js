@@ -70,8 +70,20 @@ const ContentCreatorScreen = ({ navigation }) => {
     try {
       if (useAI) {
         // Use Gemini AI for better ideas
-        const aiIdeas = await generateAIPostIdeas(selectedNiche, selectedPlatform, selectedTone, 5);
-        setPostIdeas(aiIdeas);
+        try {
+          const aiIdeas = await generateAIPostIdeas(selectedNiche, selectedPlatform, selectedTone, 5);
+          setPostIdeas(aiIdeas);
+        } catch (aiError) {
+          console.warn('AI generation failed, falling back to templates:', aiError);
+          Alert.alert(
+            '⚠️ AI Mode Unavailable', 
+            'Using template mode instead. Please check your internet connection or API key configuration.',
+            [{ text: 'OK' }]
+          );
+          // Fallback to template-based
+          const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
+          setPostIdeas(ideas);
+        }
       } else {
         // Use template-based ideas
         const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
@@ -79,7 +91,7 @@ const ContentCreatorScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error loading ideas:', error);
-      // Fallback to template-based if AI fails
+      // Final fallback
       const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
       setPostIdeas(ideas);
     } finally {
@@ -99,11 +111,26 @@ const ContentCreatorScreen = ({ navigation }) => {
       
       if (useAI) {
         // Use Gemini AI for better quality
-        caption = await generateAICaption(topic, selectedPlatform, selectedTone);
-        setGeneratedCaption(caption);
-        
-        hashtags = await generateAIHashtags(caption, selectedPlatform, selectedNiche, 10);
-        setGeneratedHashtags(hashtags);
+        try {
+          caption = await generateAICaption(topic, selectedPlatform, selectedTone);
+          setGeneratedCaption(caption);
+          
+          hashtags = await generateAIHashtags(caption, selectedPlatform, selectedNiche, 10);
+          setGeneratedHashtags(hashtags);
+        } catch (aiError) {
+          console.warn('AI caption generation failed, using templates:', aiError);
+          Alert.alert(
+            '⚠️ AI Unavailable',
+            'Generated using templates instead. AI features may be temporarily unavailable.',
+            [{ text: 'OK' }]
+          );
+          // Fallback to templates
+          caption = generateCaption(topic, selectedPlatform, selectedTone);
+          setGeneratedCaption(caption);
+          
+          hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
+          setGeneratedHashtags(hashtags);
+        }
       } else {
         // Use template-based generation
         caption = generateCaption(topic, selectedPlatform, selectedTone);
@@ -121,16 +148,7 @@ const ContentCreatorScreen = ({ navigation }) => {
       setImprovements(null);
     } catch (error) {
       console.error('Error generating content:', error);
-      Alert.alert('Error', 'Failed to generate content. Please check your API key in config.');
-      
-      // Fallback to templates
-      const caption = generateCaption(topic, selectedPlatform, selectedTone);
-      setGeneratedCaption(caption);
-      const hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
-      setGeneratedHashtags(hashtags);
-      const score = predictEngagement(caption, hashtags, selectedPlatform, new Date());
-      setEngagementScore(score);
-      setShowIdeas(false);
+      Alert.alert('Error', 'Failed to generate content. Please try again.');
     } finally {
       setAiLoading(false);
     }
