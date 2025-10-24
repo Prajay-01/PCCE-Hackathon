@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "399571257787",
+    "project_id": "growify-ai-925ae",
+    "storage_bucket": "growify-ai-925ae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:399571257787:android:6e742087b2dbf1f8dddc9e",
+        "android_client_info": {
+          "package_name": "com.contentgrowthassistant.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD244unpY2I3GcqszepotR9jSlbpe6n32U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
