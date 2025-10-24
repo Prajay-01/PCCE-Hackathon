@@ -29,13 +29,29 @@ const InsightsScreen = () => {
   const [connectedPlatforms, setConnectedPlatforms] = useState([]);
 
   useEffect(() => {
-    if (user) {
-      loadInsightsData();
-    }
+    if (!user) return;
+
+    let unsubscribe = () => {};
+
+    const loadData = async () => {
+      try {
+        unsubscribe = await loadInsightsData();
+      } catch (error) {
+        console.error('Error in useEffect:', error);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [user]);
 
   const loadInsightsData = async () => {
-    if (!user) return;
+    if (!user) return () => {};
     
     try {
       setLoading(true);
@@ -128,10 +144,11 @@ const InsightsScreen = () => {
           setLoading(false);
         });
 
-      return () => unsubscribe();
+      return unsubscribe;
     } catch (error) {
       console.error('Error loading insights:', error);
       setLoading(false);
+      return () => {}; // Return empty cleanup function on error
     }
   };
 
