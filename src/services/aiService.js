@@ -51,52 +51,60 @@ const callGeminiAPI = async (prompt) => {
  * Generate creative post ideas using AI
  */
 export const generateAIPostIdeas = async (niche, platform, tone = 'professional', count = 5) => {
-  const prompt = `You are a social media expert. Generate ${count} creative post ideas for ${platform}.
-
-Context:
-- Niche: ${niche}
-- Tone: ${tone}
-- Platform: ${platform}
+  const prompt = `Generate ${count} creative social media post ideas for ${platform} in the ${niche} niche with a ${tone} tone.
 
 For each idea, provide:
-1. An engaging topic
-2. A complete caption (optimized for ${platform})
-3. Estimated engagement potential (as a percentage)
+- Topic (short phrase)
+- Caption (2-3 sentences, engaging and ready to post)
+- Engagement score (number between 60-95)
 
-Format the response as a JSON array with objects containing: topic, caption, engagement
-
-Make the captions platform-specific, engaging, and include relevant emojis.`;
+Format as plain text, one idea per line like this:
+1. Topic: [topic] | Caption: [caption] | Score: [number]`;
 
   try {
     const response = await callGeminiAPI(prompt);
     
-    // Try to parse JSON from response
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const ideas = JSON.parse(jsonMatch[0]);
-      return ideas.map((idea, index) => ({
-        id: `ai_idea_${Date.now()}_${index}`,
-        topic: idea.topic,
-        caption: idea.caption,
-        platform,
-        niche,
-        estimatedEngagement: idea.engagement || Math.floor(Math.random() * 15) + 10,
-        createdAt: new Date().toISOString(),
-        source: 'gemini-ai',
-      }));
+    // Parse the response manually
+    const lines = response.split('\n').filter(line => line.trim());
+    const ideas = [];
+    
+    for (let i = 0; i < Math.min(lines.length, count); i++) {
+      const line = lines[i];
+      
+      // Try to extract topic, caption, and score
+      const topicMatch = line.match(/Topic:\s*([^|]+)/i);
+      const captionMatch = line.match(/Caption:\s*([^|]+)/i);
+      const scoreMatch = line.match(/Score:\s*(\d+)/i);
+      
+      if (topicMatch || captionMatch) {
+        ideas.push({
+          id: `ai_idea_${Date.now()}_${i}`,
+          topic: topicMatch ? topicMatch[1].trim() : `${niche} idea ${i + 1}`,
+          caption: captionMatch ? captionMatch[1].trim() : line.substring(0, 200),
+          platform,
+          niche,
+          estimatedEngagement: scoreMatch ? parseInt(scoreMatch[1]) : Math.floor(Math.random() * 20) + 65,
+          createdAt: new Date().toISOString(),
+          source: 'gemini-ai',
+        });
+      }
     }
     
-    // Fallback: parse text response
-    return [{
-      id: `ai_idea_${Date.now()}`,
-      topic: niche,
-      caption: response.substring(0, 300),
-      platform,
-      niche,
-      estimatedEngagement: 75,
-      createdAt: new Date().toISOString(),
-      source: 'gemini-ai',
-    }];
+    // If parsing failed, create one idea from the response
+    if (ideas.length === 0) {
+      ideas.push({
+        id: `ai_idea_${Date.now()}`,
+        topic: `${niche} content`,
+        caption: response.substring(0, 250).trim(),
+        platform,
+        niche,
+        estimatedEngagement: 75,
+        createdAt: new Date().toISOString(),
+        source: 'gemini-ai',
+      });
+    }
+    
+    return ideas;
   } catch (error) {
     console.error('Error generating AI ideas:', error);
     throw error;
@@ -142,35 +150,37 @@ Generate only the caption text, ready to copy and paste.`;
  * Generate smart hashtags using AI
  */
 export const generateAIHashtags = async (caption, platform, niche, count = 10) => {
-  const prompt = `Analyze this ${platform} post and generate ${count} highly relevant, trending hashtags:
+  const prompt = `Generate ${count} relevant hashtags for this ${platform} post in the ${niche} niche.
 
-Caption: "${caption}"
-
-Niche: ${niche}
-Platform: ${platform}
+Post: "${caption.substring(0, 200)}"
 
 Requirements:
-- Mix of popular and niche-specific hashtags
-- Include trending hashtags relevant to the content
-- Prioritize hashtags with high engagement potential
-- Balance reach vs. specificity
+- Mix of popular and niche-specific
+- Relevant to the content
+- Format: List hashtags separated by spaces, starting with #
+- Example: #Tech #AI #Innovation
 
-Return only the hashtags in a comma-separated list (e.g., #Tech, #AI, #Innovation)`;
+Generate only the hashtags, nothing else.`;
 
   try {
     const response = await callGeminiAPI(prompt);
     
     // Extract hashtags from response
-    const hashtags = response
-      .split(/[,\s]+/)
-      .filter(tag => tag.startsWith('#'))
-      .map(tag => tag.trim())
-      .slice(0, count);
+    const hashtagMatches = response.match(/#\w+/g);
     
-    return hashtags.length > 0 ? hashtags : ['#Content', '#SocialMedia', `#${niche}`];
+    if (hashtagMatches && hashtagMatches.length > 0) {
+      return hashtagMatches.slice(0, count);
+    }
+    
+    // Fallback: create hashtags from words
+    const words = response.split(/\s+/).filter(word => word.length > 3);
+    return words.slice(0, count).map(word => 
+      `#${word.replace(/[^a-zA-Z0-9]/g, '')}`
+    ).filter(tag => tag.length > 2);
   } catch (error) {
     console.error('Error generating AI hashtags:', error);
-    throw error;
+    // Return basic hashtags as fallback
+    return [`#${niche}`, `#${platform}`, '#Content', '#SocialMedia'];
   }
 };
 
@@ -178,33 +188,43 @@ Return only the hashtags in a comma-separated list (e.g., #Tech, #AI, #Innovatio
  * Analyze and improve existing caption
  */
 export const improveCaption = async (caption, platform) => {
-  const prompt = `You are a social media expert. Analyze and improve this ${platform} caption:
+  const prompt = `Improve this ${platform} caption:
 
-Original Caption:
-"${caption}"
+Original: "${caption}"
 
 Provide:
-1. An improved version with better engagement potential
-2. 3 specific suggestions for improvement
-3. Engagement score (0-100) for original vs improved
+1. IMPROVED VERSION: [write the improved caption]
+2. SUGGESTION 1: [first suggestion]
+3. SUGGESTION 2: [second suggestion]  
+4. SUGGESTION 3: [third suggestion]
+5. ORIGINAL SCORE: [number 0-100]
+6. IMPROVED SCORE: [number 0-100]
 
-Format as JSON with: improved, suggestions (array), originalScore, improvedScore`;
+Keep it simple and clear.`;
 
   try {
     const response = await callGeminiAPI(prompt);
     
-    // Try to parse JSON
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
+    // Parse the response
+    const improvedMatch = response.match(/IMPROVED VERSION:?\s*(.+?)(?=SUGGESTION|$)/is);
+    const suggestions = [];
+    const suggestionMatches = response.matchAll(/SUGGESTION \d+:?\s*(.+?)(?=SUGGESTION|\d+\.|$)/gis);
+    for (const match of suggestionMatches) {
+      if (match[1]) suggestions.push(match[1].trim());
     }
     
-    // Fallback
+    const originalScoreMatch = response.match(/ORIGINAL SCORE:?\s*(\d+)/i);
+    const improvedScoreMatch = response.match(/IMPROVED SCORE:?\s*(\d+)/i);
+    
     return {
-      improved: response.split('\n')[0],
-      suggestions: ['Add more emojis', 'Include a call-to-action', 'Make the hook stronger'],
-      originalScore: 60,
-      improvedScore: 85,
+      improved: improvedMatch ? improvedMatch[1].trim() : caption + ' (Enhanced with AI)',
+      suggestions: suggestions.length > 0 ? suggestions.slice(0, 3) : [
+        'Add more emojis for visual appeal',
+        'Include a clear call-to-action',
+        'Make the hook more compelling'
+      ],
+      originalScore: originalScoreMatch ? parseInt(originalScoreMatch[1]) : 65,
+      improvedScore: improvedScoreMatch ? parseInt(improvedScoreMatch[1]) : 85,
     };
   } catch (error) {
     console.error('Error improving caption:', error);
