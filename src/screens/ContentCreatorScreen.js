@@ -58,49 +58,85 @@ const ContentCreatorScreen = ({ navigation }) => {
   const scrollViewRef = useRef(null);
 
   useEffect(() => {
-    initializeInstagramAnalysis();
+    initializeAIAssistant();
   }, []);
 
-  const initializeInstagramAnalysis = async () => {
+  const initializeAIAssistant = async () => {
     setLoading(true);
     try {
-      // Get Instagram access token from user's connected accounts
+      // Try to get Instagram data, but don't require it
       const userDoc = await firestore().collection('users').doc(user.uid).get();
-      const connectedAccounts = userDoc.data()?.connectedAccounts || {};
+      const userData = userDoc.data();
+      const connectedAccounts = userData?.connectedAccounts || {};
       
       if (connectedAccounts.instagram?.accessToken) {
-        // Fetch real Instagram posts
-        const posts = await fetchInstagramPosts(connectedAccounts.instagram.accessToken);
-        setInstagramData(posts);
-        
-        // Analyze the data
-        const analysis = await analyzeInstagramData(posts);
-        setInstagramAnalysis(analysis);
-        
-        // Generate personalized suggestions
-        if (analysis) {
-          const suggestions = await generatePersonalizedSuggestions(analysis, selectedPlatform, 5);
-          setPostIdeas(suggestions);
+        try {
+          // Try to fetch Instagram posts
+          const posts = await fetchInstagramPosts(connectedAccounts.instagram.accessToken);
+          
+          if (posts && posts.length > 0) {
+            setInstagramData(posts);
+            
+            // Analyze the data
+            const analysis = await analyzeInstagramData(posts);
+            setInstagramAnalysis(analysis);
+            
+            // Generate personalized suggestions
+            const suggestions = await generatePersonalizedSuggestions(analysis, selectedPlatform, 5);
+            setPostIdeas(suggestions);
+            return; // Success!
+          }
+        } catch (instagramError) {
+          console.warn('Instagram API not available:', instagramError);
+          // Fall through to manual input mode
         }
-      } else {
-        Alert.alert(
-          '📱 Connect Instagram',
-          'Please connect your Instagram account in Settings to get personalized AI suggestions based on your data.',
-          [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Connect Now', onPress: () => navigation.navigate('ConnectAccounts') }
-          ]
-        );
       }
-    } catch (error) {
-      console.error('Error initializing Instagram analysis:', error);
+      
+      // Fallback: Use manual input mode with mock data
+      const mockAnalysis = createMockAnalysis(userData, selectedNiche);
+      setInstagramAnalysis(mockAnalysis);
+      
+      // Generate AI suggestions based on niche (without Instagram data)
+      const suggestions = await generatePersonalizedSuggestions(mockAnalysis, selectedPlatform, 5);
+      setPostIdeas(suggestions);
+      
+      // Show info message
       Alert.alert(
-        'Unable to Load Data',
-        'Could not fetch your Instagram data. Please check your connection and try again.'
+        '💡 Manual Mode',
+        'Instagram data not available. AI will learn from your preferences as you create content!\n\nTip: The more captions you generate, the better AI gets at your style.',
+        [{ text: 'Got it!' }]
       );
+      
+    } catch (error) {
+      console.error('Error initializing AI assistant:', error);
+      
+      // Final fallback with basic data
+      const basicAnalysis = createMockAnalysis(null, selectedNiche);
+      setInstagramAnalysis(basicAnalysis);
+      
+      const suggestions = await generatePersonalizedSuggestions(basicAnalysis, selectedPlatform, 5);
+      setPostIdeas(suggestions);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Create mock analysis data when Instagram is not available
+  const createMockAnalysis = (userData, niche) => {
+    return {
+      totalPosts: 0,
+      avgLikes: 100,
+      avgComments: 10,
+      topCaptions: [
+        `Check out this amazing ${niche} content! 🚀`,
+        `New ${niche} insights you don't want to miss 💡`,
+        `The future of ${niche} starts here ✨`,
+      ],
+      topKeywords: [niche, 'content', 'tips', 'guide', 'tutorial'],
+      bestPostingHour: 19, // 7 PM default
+      topPerformingPosts: [],
+      isManualMode: true,
+    };
   };
 
   const handleGenerateCaption = async () => {
@@ -111,33 +147,53 @@ const ContentCreatorScreen = ({ navigation }) => {
 
     if (!instagramAnalysis) {
       Alert.alert(
-        'Connect Instagram',
-        'Please connect your Instagram account to get personalized AI-generated captions based on your successful posts.'
+        'Not Ready',
+        'AI is still initializing. Please wait a moment and try again.'
       );
       return;
     }
 
     setAiLoading(true);
     try {
-      // Use OpenAI with your Instagram data for personalized caption
+      // Use OpenAI with available data (Instagram or mock)
       const caption = await generatePersonalizedCaption(topic, instagramAnalysis, selectedPlatform);
       setGeneratedCaption(caption);
       
-      // Generate hashtags based on your successful posts
+      // Generate hashtags
       const hashtags = await generatePersonalizedHashtags(caption, instagramAnalysis);
       setGeneratedHashtags(hashtags);
       
-      // Set engagement prediction based on your averages
+      // Set engagement prediction
       setEngagementScore(instagramAnalysis.avgLikes);
+      
+      if (instagramAnalysis.isManualMode) {
+        // Save this caption to learn from it
+        saveUserPreference(caption);
+      }
       
     } catch (error) {
       console.error('Error generating caption:', error);
       Alert.alert(
         'Generation Failed',
-        'Unable to generate AI caption. Please check your OpenAI API key in the config file and try again.'
+        'Unable to generate AI caption. Please check your OpenAI API key in the config file and try again.\n\nError: ' + error.message
       );
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const saveUserPreference = async (caption) => {
+    try {
+      // Save to Firestore to learn user's style over time
+      await firestore().collection('users').doc(user.uid).collection('captions').add({
+        caption,
+        topic,
+        platform: selectedPlatform,
+        niche: selectedNiche,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.warn('Could not save preference:', error);
     }
   };
 
@@ -281,7 +337,9 @@ const ContentCreatorScreen = ({ navigation }) => {
           <View>
             <Title style={styles.headerTitle}>🤖 AI Content Assistant</Title>
             <Paragraph style={styles.headerSubtitle}>
-              Powered by your Instagram data
+              {instagramAnalysis?.isManualMode 
+                ? '✍️ Learning your style as you create'
+                : '📊 Powered by your Instagram data'}
             </Paragraph>
           </View>
           <View style={styles.headerButtons}>
@@ -300,12 +358,18 @@ const ContentCreatorScreen = ({ navigation }) => {
           <Surface style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View style={styles.stat}>
-                <Text style={styles.statValue}>{instagramAnalysis.totalPosts}</Text>
-                <Text style={styles.statLabel}>Posts Analyzed</Text>
+                <Text style={styles.statValue}>
+                  {instagramAnalysis.isManualMode ? '✍️' : instagramAnalysis.totalPosts}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {instagramAnalysis.isManualMode ? 'Manual Mode' : 'Posts Analyzed'}
+                </Text>
               </View>
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{instagramAnalysis.avgLikes}</Text>
-                <Text style={styles.statLabel}>Avg Likes</Text>
+                <Text style={styles.statLabel}>
+                  {instagramAnalysis.isManualMode ? 'Target Likes' : 'Avg Likes'}
+                </Text>
               </View>
               <View style={styles.stat}>
                 <Text style={styles.statValue}>{instagramAnalysis.bestPostingHour}:00</Text>
@@ -452,7 +516,9 @@ const ContentCreatorScreen = ({ navigation }) => {
               contentStyle={styles.generateButtonContent}
               buttonColor="#00D9C0"
             >
-              ✨ Generate AI Caption (Based on Your Data)
+              {instagramAnalysis?.isManualMode 
+                ? '✨ Generate AI Caption (Learning Mode)'
+                : '✨ Generate AI Caption (Based on Your Data)'}
             </Button>
           </Card.Content>
         </Card>
