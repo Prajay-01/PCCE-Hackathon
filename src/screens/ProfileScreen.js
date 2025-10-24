@@ -299,7 +299,7 @@ const ProfileScreen = ({ navigation }) => {
     // Use Alert with a simpler approach for Android compatibility
     Alert.alert(
       'YouTube Channel ID',
-      'Your Channel ID: UCFMrgqcf3mWkGh3D9t7vTXA\n\nProceed with sync?',
+      'Your Channel ID: UCMhKOM7hhkb4icpRY2XaKOg\n\nProceed with sync?',
       [
         {
           text: 'Cancel',
@@ -308,7 +308,7 @@ const ProfileScreen = ({ navigation }) => {
         {
           text: 'Sync Now',
           onPress: async () => {
-            const channelId = 'UCFMrgqcf3mWkGh3D9t7vTXA'; // Your channel ID
+            const channelId = 'UCMhKOM7hhkb4icpRY2XaKOg'; // Your YouTube channel ID
 
             try {
               setSyncing(true);
