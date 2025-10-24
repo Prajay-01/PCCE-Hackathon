@@ -32,9 +32,16 @@ const ProfileScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     setLoading(true);
+    
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      console.log("ProfileScreen: Load timeout - showing default state");
+      setLoading(false);
+    }, 3000); // 3 second timeout
+
     try {
-      // Fetch connected accounts
-      const accountsResult = await getConnectedAccounts(user.uid);
+      // Fetch connected accounts with timeout
+      const accountsResult = await getConnectedAccounts(user.uid, 2000);
       if (accountsResult.success) {
         const platforms = accountsResult.accounts.map(acc => ({
           name: getPlatformName(acc.platform),
@@ -46,14 +53,17 @@ const ProfileScreen = ({ navigation }) => {
         setConnectedPlatforms(platforms);
       }
 
-      // Fetch analytics for stats
-      const analyticsResult = await fetchUserAnalytics(user.uid);
+      // Fetch analytics for stats with timeout
+      const analyticsResult = await fetchUserAnalytics(user.uid, 2000);
       if (analyticsResult.success && analyticsResult.analytics) {
         calculateStats(analyticsResult.analytics);
         generateInsights(analyticsResult.analytics);
       }
+      
+      clearTimeout(timeout);
     } catch (error) {
       console.error('Error loading user data:', error);
+      clearTimeout(timeout);
     } finally {
       setLoading(false);
     }

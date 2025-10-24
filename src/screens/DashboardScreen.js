@@ -53,14 +53,13 @@ const DashboardScreen = ({ navigation }) => {
           setAnalyticsData(analyticsData);
           
           if (analyticsData.length > 0) {
-            try {
-              const accountsResult = await getConnectedAccounts(user.uid);
-              const accounts = accountsResult.success ? accountsResult.accounts : [];
-              processAnalyticsData(analyticsData, accounts);
-            } catch (accountsError) {
-              console.error("Error fetching accounts:", accountsError);
-              processAnalyticsData(analyticsData, []);
-            }
+            // Process data immediately, don't wait for accounts query
+            processAnalyticsData(analyticsData, []);
+            
+            // Fetch accounts in background (non-blocking)
+            getConnectedAccounts(user.uid, 1500).catch(err => {
+              console.log("Accounts query skipped:", err.message);
+            });
           } else {
             // Handle case with no analytics data
             setInsights([

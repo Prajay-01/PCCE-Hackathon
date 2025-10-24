@@ -29,24 +29,34 @@ export const connectSocialAccount = async (userId, platform, credentials) => {
   }
 };
 
-// Get connected social accounts
-export const getConnectedAccounts = async (userId) => {
+// Get connected social accounts with timeout
+export const getConnectedAccounts = async (userId, timeoutMs = 2000) => {
   try {
-    const snapshot = await firestore()
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
+    );
+
+    // Create the query promise
+    const queryPromise = firestore()
       .collection('users')
       .doc(userId)
       .collection('socialAccounts')
       .where('connected', '==', true)
       .get();
+
+    // Race between timeout and query
+    const snapshot = await Promise.race([queryPromise, timeoutPromise]);
     
     const accounts = [];
     snapshot.forEach(doc => {
       accounts.push({ id: doc.id, ...doc.data() });
     });
     
+    console.log('getConnectedAccounts: Found', accounts.length, 'accounts');
     return { success: true, accounts };
   } catch (error) {
-    console.error('Error fetching connected accounts:', error);
+    console.error('Error fetching connected accounts:', error.message);
     return { success: false, error: error.message, accounts: [] };
   }
 };
@@ -171,21 +181,31 @@ export const saveAnalyticsData = async (userId, platform, analyticsData) => {
 };
 
 // Fetch all analytics for user
-export const fetchUserAnalytics = async (userId) => {
+export const fetchUserAnalytics = async (userId, timeoutMs = 2000) => {
   try {
-    const snapshot = await firestore()
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
+    );
+
+    // Create the query promise
+    const queryPromise = firestore()
       .collection('analytics')
       .where('userId', '==', userId)
       .get();
+
+    // Race between timeout and query
+    const snapshot = await Promise.race([queryPromise, timeoutPromise]);
     
     const analytics = [];
     snapshot.forEach(doc => {
       analytics.push({ id: doc.id, ...doc.data() });
     });
     
+    console.log('fetchUserAnalytics: Found', analytics.length, 'analytics records');
     return { success: true, analytics };
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    console.error('Error fetching analytics:', error.message);
     return { success: false, error: error.message, analytics: [] };
   }
 };
