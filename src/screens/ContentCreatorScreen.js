@@ -50,7 +50,7 @@ const ContentCreatorScreen = ({ navigation }) => {
   const [showIdeas, setShowIdeas] = useState(true);
   
   // New AI features
-  const [useAI, setUseAI] = useState(true);
+  const [useAI, setUseAI] = useState(false); // OFF by default to avoid API limits
   const [showAIChat, setShowAIChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
