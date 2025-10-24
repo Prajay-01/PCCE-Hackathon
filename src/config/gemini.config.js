@@ -8,7 +8,7 @@
  */
 
 export const GEMINI_CONFIG = {
-  apiKey: 'AIzaSyCGj7BC_GqxtVhE7kqHjqyFbQc1S62nf-o', // Your Gemini API key
+  apiKey: 'AIzaSyBo-kABnck_bHH2AQdyIdwk-rPQfrfuSBA', // Your Gemini API key
   model: 'gemini-2.5-flash', // Using Gemini 2.5 Flash (latest stable)
   temperature: 0.7, // Controls creativity (0.0 - 1.0)
   maxTokens: 2048,

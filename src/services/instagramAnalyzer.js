@@ -1,8 +1,9 @@
-import { OPENAI_API_URL, OPENAI_CONFIG } from '../config/openai.config';
+import { GEMINI_API_URL, GEMINI_CONFIG } from '../config/gemini.config';
 
 /**
  * Instagram Data Analyzer Service
  * Fetches and analyzes your Instagram posts to find patterns
+ * Uses Gemini AI for intelligent content generation
  */
 
 /**
@@ -105,39 +106,43 @@ export const analyzeInstagramData = async (posts) => {
 };
 
 /**
- * Call OpenAI API with chat format
+ * Call Gemini API
  */
-const callOpenAI = async (messages) => {
+const callGeminiAPI = async (prompt) => {
   try {
-    const response = await fetch(OPENAI_API_URL, {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_CONFIG.apiKey}`,
       },
       body: JSON.stringify({
-        model: OPENAI_CONFIG.model,
-        messages: messages,
-        temperature: OPENAI_CONFIG.temperature,
-        max_tokens: OPENAI_CONFIG.maxTokens,
-        top_p: OPENAI_CONFIG.topP,
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: GEMINI_CONFIG.temperature,
+          topK: GEMINI_CONFIG.topK,
+          topP: GEMINI_CONFIG.topP,
+          maxOutputTokens: GEMINI_CONFIG.maxTokens,
+        },
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (data.choices && data.choices.length > 0) {
-      return data.choices[0].message.content;
+    if (data.candidates && data.candidates.length > 0) {
+      return data.candidates[0].content.parts[0].text;
     }
     
-    throw new Error('No response from OpenAI');
+    throw new Error('No response from Gemini');
   } catch (error) {
-    console.error('OpenAI API Error:', error);
+    console.error('Gemini API Error:', error);
     throw error;
   }
 };
@@ -158,14 +163,7 @@ Top Performing Captions (for reference):
 ${instagramAnalysis.topCaptions.slice(0, 3).map((cap, i) => `${i + 1}. ${cap.substring(0, 150)}...`).join('\n')}
 `;
 
-  const messages = [
-    {
-      role: 'system',
-      content: `You are an expert social media content strategist. Analyze the user's Instagram performance data and suggest ${count} highly personalized post ideas that will perform well based on their past success patterns. Consider their top keywords, engagement rates, and successful caption styles.`
-    },
-    {
-      role: 'user',
-      content: `Based on this Instagram account data, suggest ${count} new post ideas that are likely to get high engagement:
+  const prompt = `You are an expert social media content strategist. Based on this Instagram account data, suggest ${count} new post ideas that are likely to get high engagement:
 
 ${analysisText}
 
@@ -175,12 +173,10 @@ For each suggestion, provide:
 3. Best Time: [Recommended posting time based on their data]
 4. Expected Engagement: [Realistic prediction based on their averages]
 
-Format each suggestion clearly numbered 1-${count}.`
-    }
-  ];
+Format each suggestion clearly numbered 1-${count}.`;
 
   try {
-    const response = await callOpenAI(messages);
+    const response = await callGeminiAPI(prompt);
     
     // Parse AI response into structured suggestions
     const suggestions = [];
@@ -235,14 +231,7 @@ Format each suggestion clearly numbered 1-${count}.`
  * Generate caption based on user's successful style
  */
 export const generatePersonalizedCaption = async (topic, instagramAnalysis, platform = 'instagram') => {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a social media expert who writes captions in the style of successful posts. Match the tone, structure, and elements that have performed well.'
-    },
-    {
-      role: 'user',
-      content: `Write an Instagram caption about "${topic}" in the style of these successful captions:
+  const prompt = `Write an Instagram caption about "${topic}" in the style of these successful captions:
 
 ${instagramAnalysis.topCaptions.slice(0, 3).join('\n\n---\n\n')}
 
@@ -250,12 +239,10 @@ Key elements that worked:
 - Keywords: ${instagramAnalysis.topKeywords.join(', ')}
 - Average engagement: ${instagramAnalysis.avgLikes} likes, ${instagramAnalysis.avgComments} comments
 
-Create a caption that matches this style and is likely to perform well.`
-    }
-  ];
+Create a caption that matches this style and is likely to perform well. Return only the caption text, ready to post.`;
 
   try {
-    const caption = await callOpenAI(messages);
+    const caption = await callGeminiAPI(prompt);
     return caption.trim();
   } catch (error) {
     console.error('Error generating personalized caption:', error);
@@ -267,14 +254,7 @@ Create a caption that matches this style and is likely to perform well.`
  * Generate hashtags based on successful posts
  */
 export const generatePersonalizedHashtags = async (caption, instagramAnalysis) => {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a hashtag expert. Generate relevant, high-performing hashtags.'
-    },
-    {
-      role: 'user',
-      content: `Generate 15 hashtags for this caption: "${caption}"
+  const prompt = `Generate 15 hashtags for this caption: "${caption}"
 
 Account keywords that work well: ${instagramAnalysis.topKeywords.join(', ')}
 
@@ -283,12 +263,10 @@ Mix:
 - 5 medium-competition (100K-1M posts)
 - 5 niche-specific (under 100K posts)
 
-Return only hashtags, one per line, with # symbol.`
-    }
-  ];
+Return only hashtags, one per line, with # symbol.`;
 
   try {
-    const response = await callOpenAI(messages);
+    const response = await callGeminiAPI(prompt);
     const hashtags = response
       .split('\n')
       .map(line => line.trim())
@@ -306,14 +284,7 @@ Return only hashtags, one per line, with # symbol.`
  * Get content strategy advice
  */
 export const getContentStrategy = async (instagramAnalysis) => {
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are a data-driven social media strategist. Provide actionable insights.'
-    },
-    {
-      role: 'user',
-      content: `Analyze this Instagram account and provide strategy recommendations:
+  const prompt = `Analyze this Instagram account and provide strategy recommendations:
 
 Performance Data:
 - ${instagramAnalysis.totalPosts} posts analyzed
@@ -325,12 +296,10 @@ Provide:
 1. What's working well (2-3 points)
 2. Areas for improvement (2-3 points)
 3. Next 3 content themes to try
-4. Posting schedule recommendation`
-    }
-  ];
+4. Posting schedule recommendation`;
 
   try {
-    const strategy = await callOpenAI(messages);
+    const strategy = await callGeminiAPI(prompt);
     return strategy;
   } catch (error) {
     console.error('Error getting strategy:', error);

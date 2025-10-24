@@ -247,3 +247,5 @@ Your app now has professional-grade AI assistance. Use it to:
 - Grow your social media presence
 
 Happy creating! 🚀✨
+
+AIzaSyBo-kABnck_bHH2AQdyIdwk-rPQfrfuSBA
