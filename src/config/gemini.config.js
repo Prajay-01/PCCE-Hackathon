@@ -8,7 +8,7 @@
  */
 
 export const GEMINI_CONFIG = {
-  apiKey: 'AIzaSyBcUuWry0G2eljE1sFoBhFOttbaiJ86UU8', // Your Gemini API key
+  apiKey: 'AIzaSyARAy1N_QZhD3iQ51QMKi1x9qUcKWbDPJE', // Your Gemini API key
   model: 'gemini-pro',
   temperature: 0.7, // Controls creativity (0.0 - 1.0)
   maxTokens: 1024,
