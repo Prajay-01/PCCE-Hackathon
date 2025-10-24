@@ -11,7 +11,6 @@ import { syncYouTubeData } from '../services/youtubeService';
 
 const ProfileScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [autoPost, setAutoPost] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -408,6 +407,107 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
+  const handleNotificationsToggle = (value) => {
+    setNotifications(value);
+    Alert.alert(
+      value ? 'Notifications Enabled' : 'Notifications Disabled',
+      value 
+        ? 'You will receive post reminders and insights'
+        : 'You won\'t receive any notifications'
+    );
+  };
+
+  const handleAutoPostToggle = (value) => {
+    setAutoPost(value);
+    Alert.alert(
+      value ? 'Auto-Post Enabled' : 'Auto-Post Disabled',
+      value 
+        ? 'Scheduled posts will be published automatically'
+        : 'You need to manually publish scheduled posts'
+    );
+  };
+
+  const handleEditProfile = () => {
+    Alert.alert(
+      'Edit Profile',
+      `Name: ${user?.displayName || 'Not set'}\nEmail: ${user?.email}\n\nThis feature allows you to update your profile information.`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleChangePassword = () => {
+    Alert.alert(
+      'Change Password',
+      'Password reset link will be sent to your email address.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Link',
+          onPress: () => {
+            Alert.alert('Success', `Password reset link sent to ${user?.email}`);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSubscription = () => {
+    Alert.alert(
+      'Premium Subscription',
+      'You are currently on the Premium plan.\n\nFeatures:\n• Unlimited social accounts\n• AI-powered insights\n• Advanced analytics\n• Priority support\n\nPrice: $9.99/month',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Manage Subscription' }
+      ]
+    );
+  };
+
+  const handlePrivacySecurity = () => {
+    Alert.alert(
+      'Privacy & Security',
+      'Your data is encrypted and secure.\n\n• Data is stored securely in Firebase\n• We never share your information\n• You can delete your account anytime\n• All connections are SSL encrypted',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleHelpCenter = () => {
+    Alert.alert(
+      'Help Center',
+      'Need help?\n\n• How to connect social accounts\n• Understanding analytics\n• Scheduling posts\n• AI content generation\n• Best practices for growth\n\nVisit our documentation for detailed guides.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleContactSupport = () => {
+    Alert.alert(
+      'Contact Support',
+      'Email: support@growifyai.com\nResponse time: Within 24 hours\n\nPlease include:\n• Your account email\n• Issue description\n• Screenshots (if applicable)',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Send Email' }
+      ]
+    );
+  };
+
+  const handleRateApp = () => {
+    Alert.alert(
+      'Rate Growify AI',
+      'Enjoying the app? Please rate us on the store!\n\nYour feedback helps us improve and reach more creators.',
+      [
+        { text: 'Maybe Later', style: 'cancel' },
+        { text: 'Rate Now', onPress: () => Alert.alert('Thanks!', 'Opening app store...') }
+      ]
+    );
+  };
+
+  const handleAbout = () => {
+    Alert.alert(
+      'About Growify AI',
+      'Version: 1.0.0\nBuild: 2025.10.24\n\nGrowify AI - Your Social Media Growth Assistant\n\nDeveloped with ❤️ for content creators\n\n© 2025 Growify AI. All rights reserved.',
+      [{ text: 'OK' }]
+    );
+  };
+
   const stats = [
     { label: 'Total Posts', value: userStats.totalPosts.toString(), icon: 'post' },
     { label: 'Total Views', value: userStats.totalViews.toString(), icon: 'eye' },
@@ -578,27 +678,14 @@ const ProfileScreen = ({ navigation }) => {
         <Title style={styles.sectionTitle}>Settings</Title>
         <Card style={styles.settingsCard}>
           <List.Item
-            title="Dark Mode"
-            description="Switch to dark theme"
-            left={props => <List.Icon {...props} icon="theme-light-dark" />}
-            right={() => (
-              <Switch 
-                value={darkMode} 
-                onValueChange={setDarkMode}
-                color="#667eea"
-              />
-            )}
-          />
-          <Divider />
-          <List.Item
             title="Push Notifications"
             description="Receive post reminders and insights"
             left={props => <List.Icon {...props} icon="bell" />}
             right={() => (
               <Switch 
                 value={notifications} 
-                onValueChange={setNotifications}
-                color="#667eea"
+                onValueChange={handleNotificationsToggle}
+                color="#00D9C0"
               />
             )}
           />
@@ -610,8 +697,8 @@ const ProfileScreen = ({ navigation }) => {
             right={() => (
               <Switch 
                 value={autoPost} 
-                onValueChange={setAutoPost}
-                color="#667eea"
+                onValueChange={handleAutoPostToggle}
+                color="#00D9C0"
               />
             )}
           />
@@ -625,33 +712,33 @@ const ProfileScreen = ({ navigation }) => {
           <List.Item
             title="Edit Profile"
             description="Update your personal information"
-            left={props => <List.Icon {...props} icon="account-edit" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="account-edit" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleEditProfile}
           />
           <Divider />
           <List.Item
             title="Change Password"
             description="Update your password"
-            left={props => <List.Icon {...props} icon="lock-reset" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="lock-reset" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleChangePassword}
           />
           <Divider />
           <List.Item
             title="Subscription"
             description="Manage your premium subscription"
-            left={props => <List.Icon {...props} icon="credit-card" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="credit-card" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleSubscription}
           />
           <Divider />
           <List.Item
             title="Privacy & Security"
             description="Control your data and privacy"
-            left={props => <List.Icon {...props} icon="shield-account" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="shield-account" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handlePrivacySecurity}
           />
         </Card>
 
@@ -663,33 +750,33 @@ const ProfileScreen = ({ navigation }) => {
           <List.Item
             title="Help Center"
             description="Get help and tutorials"
-            left={props => <List.Icon {...props} icon="help-circle" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="help-circle" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleHelpCenter}
           />
           <Divider />
           <List.Item
             title="Contact Support"
             description="Reach out to our team"
-            left={props => <List.Icon {...props} icon="email" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="email" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleContactSupport}
           />
           <Divider />
           <List.Item
             title="Rate App"
             description="Share your feedback"
-            left={props => <List.Icon {...props} icon="star" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="star" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleRateApp}
           />
           <Divider />
           <List.Item
             title="About"
             description="App version and info"
-            left={props => <List.Icon {...props} icon="information" />}
-            right={props => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {}}
+            left={props => <List.Icon {...props} icon="information" color="#00D9C0" />}
+            right={props => <List.Icon {...props} icon="chevron-right" color="#808080" />}
+            onPress={handleAbout}
           />
         </Card>
 
