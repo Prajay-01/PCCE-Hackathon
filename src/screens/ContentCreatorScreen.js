@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput as RNTextInput, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput as RNTextInput, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { 
   Card, 
   Title, 
@@ -11,7 +11,10 @@ import {
   SegmentedButtons,
   ActivityIndicator,
   Divider,
-  Surface
+  Surface,
+  IconButton,
+  List,
+  Text
 } from 'react-native-paper';
 
 import { useAuth } from '../context/AuthContext';
@@ -24,9 +27,20 @@ import {
   getTrendingTopics,
 } from '../services/contentGeneratorService';
 
+import {
+  generateAIPostIdeas,
+  generateAICaption,
+  generateAIHashtags,
+  improveCaption,
+  chatWithAI,
+  getTrendingContentIdeas,
+  generateContentCalendar,
+} from '../services/aiService';
+
 const ContentCreatorScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState('instagram');
   const [selectedNiche, setSelectedNiche] = useState('tech');
   const [selectedTone, setSelectedTone] = useState('professional');
@@ -36,36 +50,90 @@ const ContentCreatorScreen = ({ navigation }) => {
   const [postIdeas, setPostIdeas] = useState([]);
   const [engagementScore, setEngagementScore] = useState(0);
   const [showIdeas, setShowIdeas] = useState(true);
+  
+  // New AI features
+  const [useAI, setUseAI] = useState(true);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [improvements, setImprovements] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [contentCalendar, setContentCalendar] = useState('');
+  const scrollViewRef = useRef(null);
 
   useEffect(() => {
     loadPostIdeas();
-  }, [selectedPlatform, selectedNiche]);
+  }, [selectedPlatform, selectedNiche, useAI]);
 
   const loadPostIdeas = async () => {
     setLoading(true);
-    const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
-    setPostIdeas(ideas);
-    setLoading(false);
+    try {
+      if (useAI) {
+        // Use Gemini AI for better ideas
+        const aiIdeas = await generateAIPostIdeas(selectedNiche, selectedPlatform, selectedTone, 5);
+        setPostIdeas(aiIdeas);
+      } else {
+        // Use template-based ideas
+        const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
+        setPostIdeas(ideas);
+      }
+    } catch (error) {
+      console.error('Error loading ideas:', error);
+      // Fallback to template-based if AI fails
+      const ideas = await generatePostIdeas(user.uid, selectedNiche, selectedPlatform);
+      setPostIdeas(ideas);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGenerateCaption = () => {
+  const handleGenerateCaption = async () => {
     if (!topic.trim()) {
       Alert.alert('Error', 'Please enter a topic first!');
       return;
     }
 
-    const caption = generateCaption(topic, selectedPlatform, selectedTone);
-    setGeneratedCaption(caption);
+    setAiLoading(true);
+    try {
+      let caption, hashtags;
+      
+      if (useAI) {
+        // Use Gemini AI for better quality
+        caption = await generateAICaption(topic, selectedPlatform, selectedTone);
+        setGeneratedCaption(caption);
+        
+        hashtags = await generateAIHashtags(caption, selectedPlatform, selectedNiche, 10);
+        setGeneratedHashtags(hashtags);
+      } else {
+        // Use template-based generation
+        caption = generateCaption(topic, selectedPlatform, selectedTone);
+        setGeneratedCaption(caption);
+        
+        hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
+        setGeneratedHashtags(hashtags);
+      }
 
-    // Generate hashtags
-    const hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
-    setGeneratedHashtags(hashtags);
-
-    // Predict engagement
-    const score = predictEngagement(caption, hashtags, selectedPlatform, new Date());
-    setEngagementScore(score);
-    
-    setShowIdeas(false);
+      // Predict engagement
+      const score = predictEngagement(caption, hashtags, selectedPlatform, new Date());
+      setEngagementScore(score);
+      
+      setShowIdeas(false);
+      setImprovements(null);
+    } catch (error) {
+      console.error('Error generating content:', error);
+      Alert.alert('Error', 'Failed to generate content. Please check your API key in config.');
+      
+      // Fallback to templates
+      const caption = generateCaption(topic, selectedPlatform, selectedTone);
+      setGeneratedCaption(caption);
+      const hashtags = generateHashtags(caption, selectedPlatform, selectedNiche, 10);
+      setGeneratedHashtags(hashtags);
+      const score = predictEngagement(caption, hashtags, selectedPlatform, new Date());
+      setEngagementScore(score);
+      setShowIdeas(false);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleUseIdea = (idea) => {
@@ -107,6 +175,67 @@ const ContentCreatorScreen = ({ navigation }) => {
     Alert.alert('Copied!', 'Content copied to clipboard (simulated)');
   };
 
+  const handleImproveCaption = async () => {
+    if (!generatedCaption) {
+      Alert.alert('Error', 'Generate a caption first!');
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const result = await improveCaption(generatedCaption, selectedPlatform);
+      setImprovements(result);
+      Alert.alert('✨ Caption Improved!', 'Check the suggestions below');
+    } catch (error) {
+      console.error('Error improving caption:', error);
+      Alert.alert('Error', 'Failed to improve caption. Check your API key.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleApplyImprovement = () => {
+    if (improvements && improvements.improved) {
+      setGeneratedCaption(improvements.improved);
+      setImprovements(null);
+      Alert.alert('Success', 'Improved caption applied!');
+    }
+  };
+
+  const handleAIChat = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage = { role: 'user', content: chatInput };
+    setChatMessages([...chatMessages, userMessage]);
+    setChatInput('');
+    setAiLoading(true);
+
+    try {
+      const response = await chatWithAI(chatInput, chatMessages);
+      const aiMessage = { role: 'assistant', content: response };
+      setChatMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error in AI chat:', error);
+      Alert.alert('Error', 'Failed to get AI response. Check your API key.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleGenerateCalendar = async () => {
+    setAiLoading(true);
+    try {
+      const calendar = await generateContentCalendar(selectedNiche, selectedPlatform, 7);
+      setContentCalendar(calendar);
+      setShowCalendar(true);
+    } catch (error) {
+      console.error('Error generating calendar:', error);
+      Alert.alert('Error', 'Failed to generate calendar. Check your API key.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const niches = [
     { value: 'tech', label: 'Tech' },
     { value: 'business', label: 'Business' },
@@ -126,8 +255,44 @@ const ContentCreatorScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Title style={styles.headerTitle}>Growify AI</Title>
-        <Paragraph style={styles.headerSubtitle}>@</Paragraph>
+        <View style={styles.headerRow}>
+          <View>
+            <Title style={styles.headerTitle}>Growify AI</Title>
+            <Paragraph style={styles.headerSubtitle}>
+              @{user?.displayName?.toLowerCase().replace(/\s+/g, '') || user?.email?.split('@')[0] || 'user'}
+            </Paragraph>
+          </View>
+          <View style={styles.headerButtons}>
+            <IconButton
+              icon="chat"
+              iconColor="#00D9C0"
+              size={24}
+              onPress={() => setShowAIChat(true)}
+            />
+            <IconButton
+              icon="calendar"
+              iconColor="#00D9C0"
+              size={24}
+              onPress={handleGenerateCalendar}
+            />
+          </View>
+        </View>
+        
+        {/* AI Toggle */}
+        <View style={styles.aiToggle}>
+          <Chip
+            icon={useAI ? "robot" : "text"}
+            selected={useAI}
+            onPress={() => setUseAI(!useAI)}
+            style={styles.aiChip}
+            selectedColor="#00D9C0"
+          >
+            {useAI ? '🤖 Gemini AI Powered' : '📝 Template Mode'}
+          </Chip>
+          {useAI && (
+            <Text style={styles.aiHint}>Higher quality, slower</Text>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -275,10 +440,12 @@ const ContentCreatorScreen = ({ navigation }) => {
               mode="contained"
               icon="auto-fix"
               onPress={handleGenerateCaption}
+              loading={aiLoading}
+              disabled={aiLoading}
               style={styles.generateButton}
               contentStyle={styles.generateButtonContent}
             >
-              Generate AI Content
+              {useAI ? '✨ Generate with AI' : 'Generate Content'}
             </Button>
           </Card.Content>
         </Card>
@@ -340,6 +507,61 @@ const ContentCreatorScreen = ({ navigation }) => {
               </Button>
             </View>
 
+            {/* AI Improvement Button */}
+            {useAI && (
+              <Button
+                mode="outlined"
+                icon="lightbulb"
+                onPress={handleImproveCaption}
+                loading={aiLoading}
+                disabled={aiLoading}
+                style={styles.improveButton}
+              >
+                🚀 Improve with AI
+              </Button>
+            )}
+
+            {/* Improvements Section */}
+            {improvements && (
+              <Card style={styles.card}>
+                <Card.Content>
+                  <Title style={styles.sectionTitle}>✨ AI Improvements</Title>
+                  
+                  <View style={styles.scoreComparison}>
+                    <Chip icon="arrow-down" style={styles.oldScore}>
+                      Original: {improvements.originalScore}%
+                    </Chip>
+                    <Chip icon="arrow-up" style={styles.newScore}>
+                      Improved: {improvements.improvedScore}%
+                    </Chip>
+                  </View>
+
+                  <Surface style={styles.improvedCaptionBox} elevation={1}>
+                    <Paragraph style={styles.captionText}>{improvements.improved}</Paragraph>
+                  </Surface>
+
+                  <Title style={[styles.sectionTitle, { fontSize: 16, marginTop: 15 }]}>
+                    💡 Suggestions:
+                  </Title>
+                  {improvements.suggestions && improvements.suggestions.map((suggestion, index) => (
+                    <View key={index} style={styles.suggestionItem}>
+                      <Text style={styles.bulletPoint}>•</Text>
+                      <Text style={styles.suggestionText}>{suggestion}</Text>
+                    </View>
+                  ))}
+
+                  <Button
+                    mode="contained"
+                    icon="check"
+                    onPress={handleApplyImprovement}
+                    style={styles.applyButton}
+                  >
+                    Apply Improved Version
+                  </Button>
+                </Card.Content>
+              </Card>
+            )}
+
             <Button
               mode="outlined"
               icon="refresh"
@@ -351,6 +573,122 @@ const ContentCreatorScreen = ({ navigation }) => {
           </>
         ) : null}
       </ScrollView>
+
+      {/* AI Chat Modal */}
+      <Modal
+        visible={showAIChat}
+        onDismiss={() => setShowAIChat(false)}
+        animationType="slide"
+      >
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.chatHeader}>
+            <Title style={styles.chatTitle}>💬 AI Assistant</Title>
+            <IconButton
+              icon="close"
+              iconColor="#FFFFFF"
+              onPress={() => setShowAIChat(false)}
+            />
+          </View>
+
+          <ScrollView style={styles.chatMessages} ref={scrollViewRef}>
+            {chatMessages.length === 0 && (
+              <Card style={styles.welcomeCard}>
+                <Card.Content>
+                  <Paragraph style={styles.welcomeText}>
+                    👋 Hi! I'm your AI growth assistant. Ask me anything about:
+                    {'\n\n'}• Content strategy
+                    {'\n'}• Engagement tips
+                    {'\n'}• Hashtag advice
+                    {'\n'}• Trending topics
+                    {'\n'}• Growth tactics
+                  </Paragraph>
+                </Card.Content>
+              </Card>
+            )}
+            
+            {chatMessages.map((msg, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.chatBubble,
+                  msg.role === 'user' ? styles.userBubble : styles.aiBubble,
+                ]}
+              >
+                <Text style={styles.chatText}>{msg.content}</Text>
+              </View>
+            ))}
+            
+            {aiLoading && (
+              <View style={styles.loadingBubble}>
+                <ActivityIndicator size="small" color="#00D9C0" />
+                <Text style={styles.loadingText}>AI is thinking...</Text>
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.chatInputContainer}>
+            <TextInput
+              mode="outlined"
+              value={chatInput}
+              onChangeText={setChatInput}
+              placeholder="Ask me anything..."
+              style={styles.chatInput}
+              multiline
+              outlineColor="#00D9C0"
+              activeOutlineColor="#00D9C0"
+              onSubmitEditing={handleAIChat}
+            />
+            <IconButton
+              icon="send"
+              iconColor="#00D9C0"
+              size={28}
+              onPress={handleAIChat}
+              disabled={!chatInput.trim() || aiLoading}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Content Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        onDismiss={() => setShowCalendar(false)}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.chatHeader}>
+            <Title style={styles.chatTitle}>📅 7-Day Content Calendar</Title>
+            <IconButton
+              icon="close"
+              iconColor="#FFFFFF"
+              onPress={() => setShowCalendar(false)}
+            />
+          </View>
+
+          <ScrollView style={styles.calendarContent}>
+            {aiLoading ? (
+              <ActivityIndicator size="large" color="#00D9C0" style={{ marginTop: 50 }} />
+            ) : (
+              <Card style={styles.calendarCard}>
+                <Card.Content>
+                  <Text style={styles.calendarText}>{contentCalendar}</Text>
+                </Card.Content>
+              </Card>
+            )}
+          </ScrollView>
+
+          <Button
+            mode="contained"
+            onPress={() => setShowCalendar(false)}
+            style={styles.closeCalendarButton}
+          >
+            Close
+          </Button>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -516,6 +854,160 @@ const styles = StyleSheet.create({
   newIdeaButton: {
     marginBottom: 20,
     borderColor: '#667eea',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+  },
+  aiToggle: {
+    marginTop: 10,
+    alignItems: 'flex-start',
+  },
+  aiChip: {
+    backgroundColor: '#2a2a2a',
+  },
+  aiHint: {
+    fontSize: 11,
+    color: '#808080',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  improveButton: {
+    marginTop: 10,
+    borderColor: '#00D9C0',
+  },
+  scoreComparison: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 15,
+  },
+  oldScore: {
+    backgroundColor: '#ff6b6b',
+  },
+  newScore: {
+    backgroundColor: '#51cf66',
+  },
+  improvedCaptionBox: {
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: '#1a3a2a',
+    borderWidth: 2,
+    borderColor: '#00D9C0',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingLeft: 10,
+  },
+  bulletPoint: {
+    color: '#00D9C0',
+    marginRight: 8,
+    fontSize: 16,
+  },
+  suggestionText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  applyButton: {
+    marginTop: 15,
+    backgroundColor: '#00D9C0',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 50,
+    backgroundColor: '#1a1a1a',
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  chatTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+  },
+  chatMessages: {
+    flex: 1,
+    padding: 15,
+  },
+  welcomeCard: {
+    backgroundColor: '#1a1a1a',
+    marginBottom: 10,
+  },
+  welcomeText: {
+    color: '#FFFFFF',
+    lineHeight: 22,
+  },
+  chatBubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 10,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#00D9C0',
+  },
+  aiBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2a2a2a',
+  },
+  chatText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  loadingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 16,
+    maxWidth: '60%',
+  },
+  loadingText: {
+    color: '#808080',
+    marginLeft: 10,
+  },
+  chatInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#1a1a1a',
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a2a',
+  },
+  chatInput: {
+    flex: 1,
+    marginRight: 10,
+    backgroundColor: '#2a2a2a',
+    maxHeight: 100,
+  },
+  calendarContent: {
+    flex: 1,
+    padding: 15,
+  },
+  calendarCard: {
+    backgroundColor: '#1a1a1a',
+  },
+  calendarText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  closeCalendarButton: {
+    margin: 15,
+    backgroundColor: '#00D9C0',
   },
 });
 

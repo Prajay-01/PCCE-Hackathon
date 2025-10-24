@@ -100,8 +100,17 @@ const SignUpScreen = ({ navigation }) => {
               onChangeText={setName}
               mode="outlined"
               style={styles.input}
-              left={<TextInput.Icon icon="account" />}
-              theme={{ colors: { primary: '#667eea' } }}
+              left={<TextInput.Icon icon="account" color="#667eea" />}
+              theme={{ 
+                colors: { 
+                  primary: '#667eea',
+                  text: '#000000',
+                  placeholder: '#999999',
+                  background: '#ffffff'
+                } 
+              }}
+              textColor="#000000"
+              placeholderTextColor="#999999"
             />
 
             <TextInput
@@ -112,8 +121,17 @@ const SignUpScreen = ({ navigation }) => {
               keyboardType="email-address"
               autoCapitalize="none"
               style={styles.input}
-              left={<TextInput.Icon icon="email" />}
-              theme={{ colors: { primary: '#667eea' } }}
+              left={<TextInput.Icon icon="email" color="#667eea" />}
+              theme={{ 
+                colors: { 
+                  primary: '#667eea',
+                  text: '#000000',
+                  placeholder: '#999999',
+                  background: '#ffffff'
+                } 
+              }}
+              textColor="#000000"
+              placeholderTextColor="#999999"
             />
 
             <TextInput
@@ -123,12 +141,22 @@ const SignUpScreen = ({ navigation }) => {
               mode="outlined"
               secureTextEntry={!showPassword}
               style={styles.input}
-              left={<TextInput.Icon icon="lock" />}
+              left={<TextInput.Icon icon="lock" color="#667eea" />}
               right={<TextInput.Icon 
                 icon={showPassword ? "eye-off" : "eye"} 
                 onPress={() => setShowPassword(!showPassword)}
+                color="#667eea"
               />}
-              theme={{ colors: { primary: '#667eea' } }}
+              theme={{ 
+                colors: { 
+                  primary: '#667eea',
+                  text: '#000000',
+                  placeholder: '#999999',
+                  background: '#ffffff'
+                } 
+              }}
+              textColor="#000000"
+              placeholderTextColor="#999999"
             />
 
             <TextInput
@@ -138,12 +166,22 @@ const SignUpScreen = ({ navigation }) => {
               mode="outlined"
               secureTextEntry={!showConfirmPassword}
               style={styles.input}
-              left={<TextInput.Icon icon="lock-check" />}
+              left={<TextInput.Icon icon="lock-check" color="#667eea" />}
               right={<TextInput.Icon 
                 icon={showConfirmPassword ? "eye-off" : "eye"} 
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                color="#667eea"
               />}
-              theme={{ colors: { primary: '#667eea' } }}
+              theme={{ 
+                colors: { 
+                  primary: '#667eea',
+                  text: '#000000',
+                  placeholder: '#999999',
+                  background: '#ffffff'
+                } 
+              }}
+              textColor="#000000"
+              placeholderTextColor="#999999"
             />
 
             <View style={styles.checkboxContainer}>
@@ -262,7 +300,8 @@ const styles = StyleSheet.create({
   checkboxText: {
     flex: 1,
     marginLeft: 8,
-    color: '#666',
+    color: '#333',
+    fontSize: 14,
   },
   signUpButton: {
     marginTop: 10,
@@ -284,7 +323,8 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 10,
-    color: '#666',
+    color: '#333',
+    fontSize: 14,
   },
   googleButton: {
     borderColor: '#667eea',
@@ -297,7 +337,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   footerText: {
-    color: '#666',
+    color: '#333',
+    fontSize: 14,
   },
   loginText: {
     color: '#667eea',

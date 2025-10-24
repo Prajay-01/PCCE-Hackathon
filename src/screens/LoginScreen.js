@@ -73,8 +73,17 @@ const LoginScreen = ({ navigation }) => {
               keyboardType="email-address"
               autoCapitalize="none"
               style={styles.input}
-              left={<TextInput.Icon icon="email" />}
-              theme={{ colors: { primary: '#667eea' } }}
+              left={<TextInput.Icon icon="email" color="#667eea" />}
+              theme={{ 
+                colors: { 
+                  primary: '#667eea',
+                  text: '#000000',
+                  placeholder: '#999999',
+                  background: '#ffffff'
+                } 
+              }}
+              textColor="#000000"
+              placeholderTextColor="#999999"
             />
 
             <TextInput
@@ -84,12 +93,22 @@ const LoginScreen = ({ navigation }) => {
               mode="outlined"
               secureTextEntry={!showPassword}
               style={styles.input}
-              left={<TextInput.Icon icon="lock" />}
+              left={<TextInput.Icon icon="lock" color="#667eea" />}
               right={<TextInput.Icon 
                 icon={showPassword ? "eye-off" : "eye"} 
                 onPress={() => setShowPassword(!showPassword)}
+                color="#667eea"
               />}
-              theme={{ colors: { primary: '#667eea' } }}
+              theme={{ 
+                colors: { 
+                  primary: '#667eea',
+                  text: '#000000',
+                  placeholder: '#999999',
+                  background: '#ffffff'
+                } 
+              }}
+              textColor="#000000"
+              placeholderTextColor="#999999"
             />
 
             <Button
@@ -209,7 +228,8 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 10,
-    color: '#666',
+    color: '#333',
+    fontSize: 14,
   },
   googleButton: {
     borderColor: '#667eea',
@@ -222,7 +242,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   footerText: {
-    color: '#666',
+    color: '#333',
+    fontSize: 14,
   },
   signUpText: {
     color: '#667eea',
